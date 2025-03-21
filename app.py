@@ -1,19 +1,24 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///ipl_betting.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.secret_key = 'some_secret_key'
+ADMIN_PASSWORD = "k"
 db = SQLAlchemy(app)
 
 class Match(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    match_date = db.Column(db.String(50), nullable=False)
-    teams_playing = db.Column(db.String(100), nullable=False)
+    match_date = db.Column(db.String(50))
+    teams_playing = db.Column(db.String(100))
     rank_1st = db.Column(db.String(50), nullable=True)
     rank_2nd = db.Column(db.String(50), nullable=True)
     rank_3rd = db.Column(db.String(50), nullable=True)
+    common_rank = db.Column(db.String(10), nullable=True)
+    common_rank_team = db.Column(db.String(50), nullable=True)
+
+
 
 dream11_teams = [
     "APS Gladiators01", "KHAL-DROGO", "nMnF11", "Beind Baibhav",
@@ -60,22 +65,34 @@ def calculate_winnings():
     winnings = {team: {"Rank1": 0, "Rank2": 0, "Rank3": 0, "Total Winnings": 0, "Total Bet": 0, "Net Winning": 0} for team in dream11_teams}
     bet_amount = 50
     winnings_amount = {"Rank1": 300, "Rank2": 200, "Rank3": 100}
-    
+
     matches = Match.query.all()
+
     for match in matches:
         if match.rank_1st and match.rank_2nd and match.rank_3rd:
             for team in dream11_teams:
-                winnings[team]["Total Bet"] += bet_amount
-        
+                winnings[team]["Total Bet"] += bet_amount  # Add bet amount for all teams
+
         for rank, team in zip(["Rank1", "Rank2", "Rank3"], [match.rank_1st, match.rank_2nd, match.rank_3rd]):
             if team and team in winnings:
-                winnings[team][rank] += 1
-                winnings[team]["Total Winnings"] += winnings_amount[rank]
-    
+                winnings[team][rank] += 1  # Increase rank count
+                winnings[team]["Total Winnings"] += winnings_amount[rank]  # Add full winnings initially
+
+                # If there's a Common Rank and it's different from the current ranked team
+                if match.common_rank_team and match.common_rank_team in winnings and match.common_rank_team != team:
+                    split_winnings = winnings_amount[rank] // 2  # Divide winnings into half
+
+                    # Reduce the original team's winnings by half
+                    winnings[team]["Total Winnings"] -= split_winnings
+                    
+                    # Add the split winnings to the common rank team
+                    winnings[match.common_rank_team]["Total Winnings"] += split_winnings
+
     for team in winnings:
         winnings[team]["Net Winning"] = winnings[team]["Total Winnings"] - winnings[team]["Total Bet"]
-    
+
     return winnings
+
 
 @app.route('/')
 def index():
@@ -97,26 +114,72 @@ def index():
     )
 
 
-@app.route('/input', methods=['GET', 'POST'])
+@app.route("/input", methods=["GET", "POST"])
 def input_page():
-    if request.method == 'POST':
-        for match in Match.query.all():
-            rank1 = request.form.get(f'rank1_{match.id}', None)
-            rank2 = request.form.get(f'rank2_{match.id}', None)
-            rank3 = request.form.get(f'rank3_{match.id}', None)
-            
-            filled_ranks = sum(bool(r) for r in [rank1, rank2, rank3])
-            if 0 < filled_ranks < 3:
-                flash("Please fill all three ranks for each match before submitting.", "error")
-                return redirect(url_for('input_page'))
-            
-            match.rank_1st = rank1
-            match.rank_2nd = rank2
-            match.rank_3rd = rank3
-        db.session.commit()
-        return redirect(url_for('index'))
-    matches = Match.query.all()
-    return render_template('input.html', matches=matches, teams=dream11_teams)
+    if request.method == "POST":
+        entered_password = request.form.get("password_submit", "").strip()
+        match_id = request.form.get("match_id")  # Get match ID if updating a single row
 
-if __name__ == '__main__':
+        if entered_password != ADMIN_PASSWORD:
+            flash("Incorrect password!", "error")
+            return redirect(url_for("input_page"))
+
+        errors = 0  # Counter for incomplete rows
+        updated_count = 0  # Counter for successfully updated rows
+
+        if match_id:  # Row-level submission
+            match = Match.query.get(int(match_id))  # Ensure it's an integer
+            if match:
+                rank_1st = request.form.get(f"rank1_{match_id}", None)
+                rank_2nd = request.form.get(f"rank2_{match_id}", None)
+                rank_3rd = request.form.get(f"rank3_{match_id}", None)
+                
+                if not (rank_1st and rank_2nd and rank_3rd):
+                    flash(f"Error: All ranks (1st, 2nd, 3rd) must be filled for Match {match_id}!", "error")
+                    return redirect(url_for("input_page"))
+
+                match.rank_1st = rank_1st
+                match.rank_2nd = rank_2nd
+                match.rank_3rd = rank_3rd
+                match.common_rank = request.form.get(f"common_rank_{match_id}", None)
+                match.common_rank_team = request.form.get(f"common_rank_team_{match_id}", None)
+
+                db.session.commit()
+                flash(f"Match {match_id} updated successfully!", "success")
+                return redirect(url_for("input_page"))
+
+        # Bulk submission logic
+        matches = Match.query.all()
+        for match in matches:
+            rank_1st = request.form.get(f"rank1_{match.id}", None)
+            rank_2nd = request.form.get(f"rank2_{match.id}", None)
+            rank_3rd = request.form.get(f"rank3_{match.id}", None)
+
+            if not (rank_1st and rank_2nd and rank_3rd):  
+                errors += 1  # Count the missing rank rows
+                continue  # Skip updating this row
+
+            match.rank_1st = rank_1st
+            match.rank_2nd = rank_2nd
+            match.rank_3rd = rank_3rd
+            match.common_rank = request.form.get(f"common_rank_{match.id}", None)
+            match.common_rank_team = request.form.get(f"common_rank_team_{match.id}", None)
+
+            updated_count += 1  # Count successful updates
+
+        if updated_count > 0:
+            db.session.commit()
+            flash(f"Successfully updated {updated_count} matches!", "success")
+
+        if errors > 0:
+            flash(f"Error: {errors} matches were not updated because ranks (1st, 2nd, 3rd) were not filled!", "error")
+
+        return redirect(url_for("input_page"))
+
+    matches = Match.query.all()
+    return render_template("input.html", matches=matches, teams=dream11_teams)
+
+if __name__ == "__main__":
+    with app.app_context():
+        db.create_all()
     app.run(debug=True)

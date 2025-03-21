@@ -4,58 +4,152 @@
 <div class="container mt-4">
     <h2 class="text-center mb-4">Enter Match Rankings</h2>
 
-    <form method="POST" action="{{ url_for('input_page') }}">
-        <table class="table table-striped table-bordered">
-            <thead class="table-dark">
-                <tr>
-                    <th>Date</th>
-                    <th>Teams Playing</th>
-                    <th>Rank 1</th>
-                    <th>Rank 2</th>
-                    <th>Rank 3</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for match in matches %}
-                <tr>
-                    <td>{{ match.match_date }}</td>
-                    <td>{{ match.teams_playing }}</td>
-                    <td>
-                        <select name="rank1_{{ match.id }}" class="form-select">
-                            <option value="" {% if not match.rank_1st %}selected{% endif %}>--Select--</option>
-                            {% for team in teams %}
-                            <option value="{{ team }}" {% if match.rank_1st == team %}selected{% endif %}>{{ team }}</option>
-                            {% endfor %}
-                        </select>
-                    </td>
-                    <td>
-                        <select name="rank2_{{ match.id }}" class="form-select">
-                            <option value="" {% if not match.rank_2nd %}selected{% endif %}>--Select--</option>
-                            {% for team in teams %}
-                            <option value="{{ team }}" {% if match.rank_2nd == team %}selected{% endif %}>{{ team }}</option>
-                            {% endfor %}
-                        </select>
-                    </td>
-                    <td>
-                        <select name="rank3_{{ match.id }}" class="form-select">
-                            <option value="" {% if not match.rank_3rd %}selected{% endif %}>--Select--</option>
-                            {% for team in teams %}
-                            <option value="{{ team }}" {% if match.rank_3rd == team %}selected{% endif %}>{{ team }}</option>
-                            {% endfor %}
-                        </select>
-                    </td>
-                    <td>
-                        <button type="submit" name="Update" value="{{ match.id }}" class="btn btn-warning btn-sm">Update</button>
-                        <button type="submit" name="Submit" value="{{ match.id }}" class="btn btn-success btn-sm">Submit</button>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    <!-- BULK SUBMISSION FORM -->
+    <form method="POST" action="{{ url_for('input_page') }}" id="bulk-form">
+        <div class="table-responsive">
+            <table class="table table-striped table-bordered">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Date</th>
+                        <th>Teams Playing</th>
+                        <th>Rank 1</th>
+                        <th>Rank 2</th>
+                        <th>Rank 3</th>
+                        <th>Common Rank</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for match in matches %}
+                    <tr>
+                        <td>{{ match.match_date }}</td>
+                        <td>{{ match.teams_playing }}</td>
+
+                        <td>
+                            <select name="rank1_{{ match.id }}" class="form-select">
+                                <option value="" {% if not match.rank_1st %}selected{% endif %}>--Select--</option>
+                                {% for team in teams %}
+                                <option value="{{ team }}" {% if match.rank_1st == team %}selected{% endif %}>{{ team }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+
+                        <td>
+                            <select name="rank2_{{ match.id }}" class="form-select">
+                                <option value="" {% if not match.rank_2nd %}selected{% endif %}>--Select--</option>
+                                {% for team in teams %}
+                                <option value="{{ team }}" {% if match.rank_2nd == team %}selected{% endif %}>{{ team }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+
+                        <td>
+                            <select name="rank3_{{ match.id }}" class="form-select">
+                                <option value="" {% if not match.rank_3rd %}selected{% endif %}>--Select--</option>
+                                {% for team in teams %}
+                                <option value="{{ team }}" {% if match.rank_3rd == team %}selected{% endif %}>{{ team }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+
+                        <td>
+                            <select name="common_rank_{{ match.id }}" class="form-select common-rank">
+                                <option value="" {% if not match.common_rank %}selected{% endif %}>--Select--</option>
+                                <option value="Rank1" {% if match.common_rank == 'Rank1' %}selected{% endif %}>Rank 1</option>
+                                <option value="Rank2" {% if match.common_rank == 'Rank2' %}selected{% endif %}>Rank 2</option>
+                                <option value="Rank3" {% if match.common_rank == 'Rank3' %}selected{% endif %}>Rank 3</option>
+                            </select>
+
+                            <select name="common_rank_team_{{ match.id }}" class="form-select common-rank-team" {% if not match.common_rank %}style="display:none;"{% endif %}>
+                                <option value="" {% if not match.common_rank_team %}selected{% endif %}>--Select--</option>
+                                {% for team in teams %}
+                                <option value="{{ team }}" {% if match.common_rank_team == team %}selected{% endif %}>{{ team }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+
+                        <td>
+                            <!-- Single Row Form -->
+                            <form method="POST" action="{{ url_for('input_page') }}">
+                                <button type="button" class="btn btn-success btn-sm show-password-btn">Submit</button>
+                                <input type="password" name="password_submit" class="form-control password-input mb-2" placeholder="Enter password" style="display: none;">
+                                <button type="submit" class="btn btn-primary btn-sm submit-btn" style="display: none;">Confirm</button>
+                                <input type="hidden" name="match_id" value="{{ match.id }}">
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
         <div class="text-center mt-4">
-            <button type="submit" name="submit_all" class="btn btn-primary">Submit All</button>
+            <button type="button" id="show-password-btn-all" class="btn btn-warning">Submit All</button>
+            <input type="password" name="password_submit_all" id="password-input-all" class="form-control mb-2 w-50 mx-auto" placeholder="Enter password" style="display: none;">
+            <button type="submit" id="submit-btn-all" class="btn btn-primary" style="display: none;">Confirm Submit All</button>
         </div>
     </form>
 </div>
+
+<!-- Chart Container -->
+<div class="container mt-5">
+    <h3 class="text-center">Team Winnings Breakdown</h3>
+    <div class="d-flex justify-content-center">
+        <canvas id="winningsChart" style="width:100%; height:auto;"></canvas>
+    </div>
+</div>
+
+<!-- JavaScript -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.querySelectorAll(".show-password-btn").forEach(function(btn) {
+    btn.addEventListener("click", function() {
+        let row = this.closest("tr");
+        row.querySelector(".password-input").style.display = "block";
+        row.querySelector(".submit-btn").style.display = "block";
+        this.style.display = "none";
+    });
+});
+
+document.getElementById("show-password-btn-all").addEventListener("click", function() {
+    document.getElementById("password-input-all").style.display = "block";
+    document.getElementById("submit-btn-all").style.display = "block";
+    this.style.display = "none";
+});
+
+// Show team dropdown when common rank is selected
+document.querySelectorAll(".common-rank").forEach(function(select) {
+    select.addEventListener("change", function() {
+        let row = this.closest("tr");
+        let teamDropdown = row.querySelector(".common-rank-team");
+        teamDropdown.style.display = this.value ? "block" : "none";
+    });
+});
+
+// Chart.js: Stacked Horizontal Bar Chart
+const ctx = document.getElementById('winningsChart').getContext('2d');
+new Chart(ctx, {
+    type: 'bar',
+    data: {
+        labels: ["Team A", "Team B", "Team C", "Team D"],
+        datasets: [
+            {
+                label: "Winnings",
+                data: [12, 19, 3, 5],
+                backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0']
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        indexAxis: 'y',
+        scales: {
+            x: { stacked: true },
+            y: { stacked: true }
+        }
+    }
+});
+</script>
+
 {% endblock %}

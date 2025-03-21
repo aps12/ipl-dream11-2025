@@ -16,13 +16,17 @@
             background-color: #f8f9fa;
         }
         .chart-container {
-            width: 90%;
+            width: 100%;
+            height: 400px; /* Ensures responsiveness */
+            max-width: 100%;
             margin: auto;
         }
-        .table-container {
-            width: 80%;
-            margin: auto;
-            margin-top: 20px;
+        .table-responsive {
+            overflow-x: auto; /* Enables horizontal scrolling */
+        }
+        .progress {
+            height: 30px;
+            font-weight: bold;
         }
     </style>
 </head>
@@ -52,36 +56,38 @@
 </div>
 
 <!-- Aggregate Table -->
-<div class="container table-container">
-    <h3 class="text-center mt-4">Aggregate Summary</h3>
-    <table class="table table-bordered text-center">
-        <thead class="table-dark">
-            <tr>
-                <th>Team</th>
-                <th>Total Bet</th>
-                <th>Total Winnings</th>
-                <th>Net Winning</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for team, data in winnings.items() %}
-            <tr>
-                <td>{{ team }}</td>
-                <td>{{ data["Total Bet"] }}</td>
-                <td>{{ data["Total Winnings"] }}</td>
-                <td style="color: {% if data['Net Winning'] >= 0 %}green{% else %}red{% endif %};">
-                    {{ data["Net Winning"] }}
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>        
-    </table>
+<div class="container mt-4">
+    <h3 class="text-center">Aggregate Summary</h3>
+    <div class="table-responsive">
+        <table class="table table-bordered text-center">
+            <thead class="table-dark">
+                <tr>
+                    <th>Team</th>
+                    <th>Total Bet</th>
+                    <th>Total Winnings</th>
+                    <th>Net Winning</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for team, data in winnings.items() %}
+                <tr>
+                    <td>{{ team }}</td>
+                    <td>{{ data["Total Bet"] }}</td>
+                    <td>{{ data["Total Winnings"] }}</td>
+                    <td style="color: {% if data['Net Winning'] >= 0 %}green{% else %}red{% endif %};">
+                        {{ data["Net Winning"] }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>        
+        </table>
+    </div>
 </div>
 
 <!-- Completed vs. Pending Matches - Horizontal Progress Bar -->
 <div class="container mt-4">
     <h3 class="text-center">Match Status Breakdown</h3>
-    <div class="progress" style="height: 30px; font-weight: bold;">
+    <div class="progress">
         <div class="progress-bar bg-success" role="progressbar"
             style="width: {{ (completed_matches / (completed_matches + pending_matches) * 100) | round(2) }}%;" 
             aria-valuenow="{{ completed_matches }}" 
@@ -102,15 +108,12 @@
 <script>
     document.addEventListener("DOMContentLoaded", function() {
         let winningsData = JSON.parse(`{{ winnings | tojson | safe }}`);
-        let pendingMatches = {{ pending_matches | tojson | safe }};
-        let completedMatches = {{ completed_matches | tojson | safe }};
 
         if (!winningsData || Object.keys(winningsData).length === 0) {
             console.error("Error: winningsData is empty or undefined.");
             return;
         }
 
-        // Convert data into an array of objects for sorting
         let sortedTeams = Object.entries(winningsData)
             .map(([team, data]) => ({
                 team: team,
@@ -118,59 +121,37 @@
                 totalWinnings: data["Total Winnings"],
                 netWinning: data["Net Winning"]
             }))
-            .sort((a, b) => b.netWinning - a.netWinning); // Sort in descending order
+            .sort((a, b) => b.netWinning - a.netWinning);
 
-        // Extract sorted data
         let teamLabels = sortedTeams.map(team => team.team);
         let totalBets = sortedTeams.map(team => team.totalBet);
         let totalWinnings = sortedTeams.map(team => team.totalWinnings);
         let netWinnings = sortedTeams.map(team => team.netWinning);
-
         let netWinningColors = netWinnings.map(value => value >= 0 ? "green" : "red");
 
-        let ctx1 = document.getElementById("teamWinningsChart");
-        if (!ctx1) {
-            console.error("Error: Canvas element with ID 'teamWinningsChart' not found.");
-            return;
-        }
+        let ctx1 = document.getElementById("teamWinningsChart").getContext("2d");
 
-        new Chart(ctx1.getContext("2d"), {
+        new Chart(ctx1, {
             type: "bar",
             data: {
                 labels: teamLabels,
                 datasets: [
-                    {
-                        label: "Total Bet",
-                        data: totalBets,
-                        backgroundColor: "blue"
-                    },
-                    {
-                        label: "Total Winnings",
-                        data: totalWinnings,
-                        backgroundColor: "orange"
-                    },
-                    {
-                        label: "Net Winning",
-                        data: netWinnings,
-                        backgroundColor: netWinningColors
-                    }
+                    { label: "Total Bet", data: totalBets, backgroundColor: "blue" },
+                    { label: "Total Winnings", data: totalWinnings, backgroundColor: "orange" },
+                    { label: "Net Winning", data: netWinnings, backgroundColor: netWinningColors }
                 ]
             },
             options: {
                 indexAxis: 'y', // Horizontal bar chart
                 responsive: true,
+                maintainAspectRatio: false,
                 plugins: {
                     legend: { position: "top" },
                     tooltip: { mode: "index", intersect: false }
                 },
                 scales: {
-                    x: { 
-                        beginAtZero: true,
-                        stacked: true
-                    },
-                    y: { 
-                        stacked: true
-                    }
+                    x: { beginAtZero: true, stacked: true },
+                    y: { stacked: true }
                 }
             }
         });
