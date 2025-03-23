@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Match Rankings & Winnings{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">Match Rankings & Winnings</h1>
+    
+    {% if matches %}
+        {% for match in matches %}
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">{{ match.name }}</h5>
+                    <small>{{ match.teams }}</small>
+                </div>
+                <div class="card-body">
+                    <h6 class="card-title mb-3">Rankings & Prize Distribution</h6>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-striped table-bordered">
+                            <thead class="thead-dark">
+                                <tr>
+                                    <th>Rank</th>
+                                    <th>Team(s)</th>
+                                    <th>Prize Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for rank in match.rankings %}
+                                <tr>
+                                    <td>{{ rank.rank }}</td>
+                                    <td>{{ rank.teams }}</td>
+                                    <td>{{ rank.prize }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <div class="alert alert-info">
+            No match data available.
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
