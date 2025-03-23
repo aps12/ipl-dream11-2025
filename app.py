@@ -3,12 +3,16 @@ from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 
 app = Flask(__name__)
+app.secret_key = 'k'  # Required for using session
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///ipl_betting.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.secret_key = 'some_secret_key'
 
 db = SQLAlchemy(app)
-ADMIN_PASSWORD = "k"
+
+from flask import session, redirect, url_for, request, render_template
+
+PASSWORD = "k" 
 
 class Match(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -88,22 +92,75 @@ def calculate_winnings():
     matches = Match.query.all()
     
     for match in matches:
-        ranked_teams = [match.rank_1st, match.rank_2nd, match.rank_3rd, match.rank_4th]
+        # Get ranks, handling potential comma-separated values for ties
+        rank_fields = [match.rank_1st, match.rank_2nd, match.rank_3rd, match.rank_4th]
         
-        if any(ranked_teams):  
+        # Parse all teams in this match from the comma-separated values
+        all_ranked_teams = []
+        for rank_str in rank_fields:
+            if rank_str:
+                # Split comma-separated teams and strip whitespace
+                teams_at_rank = [team.strip() for team in rank_str.split(',') if team.strip()]
+                all_ranked_teams.extend(teams_at_rank)
+        
+        # Charge bet amount to all teams if match has rankings
+        if any(rank_fields):  
             for team in dream11_teams:
-                winnings[team]["Total Bet"] += bet_amount  
+                winnings[team]["Total Bet"] += bet_amount
+        
+        # Process each rank (handling ties)
+        for rank_idx, rank_str in enumerate(rank_fields):
+            rank_name = f"Rank{rank_idx + 1}"
+            
+            if not rank_str:
+                continue
+                
+            # Get all teams at this rank (handle ties)
+            teams_at_rank = [team.strip() for team in rank_str.split(',') if team.strip()]
+            
+            if not teams_at_rank:
+                continue
+                
+            # If multiple teams at this rank, it's a tie
+            is_tie = len(teams_at_rank) > 1
+            
+            if is_tie:
+                # For ties, calculate which ranks to combine
+                ranks_to_combine = []
+                teams_in_tie = len(teams_at_rank)
+                
+                # In a tie, combine this rank with subsequent ranks
+                for i in range(teams_in_tie):
+                    if rank_idx + i < 4:  # Ensure we don't go beyond Rank4
+                        ranks_to_combine.append(f"Rank{rank_idx + i + 1}")
+                
+                # Calculate the combined prize pool
+                prize_pool = sum(winnings_amount[r] for r in ranks_to_combine)
+                individual_prize = prize_pool / teams_in_tie
+                
+                # Award the prize to each team in the tie
+                for team in teams_at_rank:
+                    if team in winnings:
+                        winnings[team][rank_name] += 1  # Count in the primary rank
+                        winnings[team]["Total Winnings"] += individual_prize
+                
+                # Skip the next n-1 ranks that were combined in this tie
+                # We do this by setting their values to empty in rank_fields
+                for i in range(1, teams_in_tie):
+                    if rank_idx + i < 4:  # Ensure we don't go beyond Rank4
+                        rank_fields[rank_idx + i] = ""
+            else:
+                # No tie, just a single team at this rank
+                team = teams_at_rank[0]
+                if team in winnings:
+                    winnings[team][rank_name] += 1
+                    winnings[team]["Total Winnings"] += winnings_amount[rank_name]
 
-        for rank, team in zip(["Rank1", "Rank2", "Rank3", "Rank4"], ranked_teams):
-            if team and team in winnings:
-                winnings[team][rank] += 1  
-                winnings[team]["Total Winnings"] += winnings_amount[rank]
-
+    # Calculate net winnings
     for team in winnings:
         winnings[team]["Net Winning"] = winnings[team]["Total Winnings"] - winnings[team]["Total Bet"]
 
     return winnings
-
 
 @app.route('/')
 def index():
@@ -128,6 +185,19 @@ def index():
 
 @app.route('/input', methods=['GET', 'POST'])
 def input_page():
+    # Check if user has already authenticated
+    if 'authenticated' not in session or not session['authenticated']:
+        if request.method == 'POST':
+            entered_password = request.form.get('password')
+            if entered_password == PASSWORD:
+                session['authenticated'] = True  # Mark user as authenticated
+                return redirect(url_for('input_page'))  # Redirect to input page
+            else:
+                error = "Incorrect password. Please try again."
+                return render_template('password_prompt.html', error=error)
+        
+        # Render password prompt if not authenticated
+        return render_template('password_prompt.html')
     try:
         # Get all matches for rendering
         matches = Match.query.order_by(Match.match_date).all()
@@ -205,6 +275,106 @@ def input_page():
     except Exception as e:
         print(f"Error in `/input` route: {e}")
         return "An error occurred", 500
+
+# Add this to your Flask app routes
+
+# Add this to your Flask app routes
+
+@app.route("/match-rankings")
+def match_rankings():
+    # Get all matches
+    matches = Match.query.all()
+    
+    # Prepare data for template
+    match_data = []
+    
+    winnings_amount = {"Rank1": 300, "Rank2": 200, "Rank3": 150, "Rank4": 100}
+    
+    for match in matches:
+        # Basic match info - using available attributes
+        match_info = {
+            "id": match.id,
+            # Use match name or create one from teams if available
+            "name": getattr(match, 'name', f"Match #{match.id}"),
+            # Create teams display based on available attributes
+            "teams": getattr(match, 'teams', 
+                     getattr(match, 'team1', '') + " vs " + getattr(match, 'team2', '')
+                     if hasattr(match, 'team1') and hasattr(match, 'team2') else f"Match #{match.id}"),
+            "rankings": []
+        }
+        
+        # Get ranks, handling comma-separated values for ties
+        rank_fields = [
+            {"name": "Rank1", "teams": match.rank_1st, "amount": winnings_amount["Rank1"]},
+            {"name": "Rank2", "teams": match.rank_2nd, "amount": winnings_amount["Rank2"]},
+            {"name": "Rank3", "teams": match.rank_3rd, "amount": winnings_amount["Rank3"]},
+            {"name": "Rank4", "teams": match.rank_4th, "amount": winnings_amount["Rank4"]}
+        ]
+        
+        # Process each rank (handling ties)
+        skip_ranks = 0
+        for i, rank in enumerate(rank_fields):
+            if skip_ranks > 0:
+                skip_ranks -= 1
+                continue
+                
+            if not rank["teams"]:
+                match_info["rankings"].append({
+                    "rank": rank["name"],
+                    "teams": "None",
+                    "prize": "₹0"
+                })
+                continue
+                
+            # Get all teams at this rank (handle ties)
+            teams_at_rank = [team.strip() for team in rank["teams"].split(',') if team.strip()]
+            
+            if not teams_at_rank:
+                match_info["rankings"].append({
+                    "rank": rank["name"],
+                    "teams": "None",
+                    "prize": "₹0"
+                })
+                continue
+                
+            # If multiple teams at this rank, it's a tie
+            is_tie = len(teams_at_rank) > 1
+            
+            if is_tie:
+                # For ties, calculate which ranks to combine
+                ranks_to_combine = []
+                teams_in_tie = len(teams_at_rank)
+                
+                # In a tie, combine this rank with subsequent ranks
+                for j in range(teams_in_tie):
+                    if i + j < 4:  # Ensure we don't go beyond Rank4
+                        ranks_to_combine.append(rank_fields[i + j])
+                
+                # Calculate the combined prize pool
+                prize_pool = sum(r["amount"] for r in ranks_to_combine)
+                individual_prize = prize_pool / teams_in_tie
+                
+                # Create ranking entry
+                combined_ranks = "-".join([r["name"] for r in ranks_to_combine])
+                match_info["rankings"].append({
+                    "rank": combined_ranks,
+                    "teams": ", ".join(teams_at_rank),
+                    "prize": f"₹{individual_prize:.2f} each"
+                })
+                
+                # Skip the next n-1 ranks that were combined in this tie
+                skip_ranks = teams_in_tie - 1
+            else:
+                # No tie, just a single team at this rank
+                match_info["rankings"].append({
+                    "rank": rank["name"],
+                    "teams": teams_at_rank[0],
+                    "prize": f"₹{rank['amount']}"
+                })
+        
+        match_data.append(match_info)
+    
+    return render_template("match_rankings.html", matches=match_data)
 
 
 if __name__ == "__main__":
