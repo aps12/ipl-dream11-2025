@@ -292,15 +292,19 @@ def match_rankings():
     winnings_amount = {"Rank1": 300, "Rank2": 200, "Rank3": 150, "Rank4": 100}
     
     for match in matches:
-        # Basic match info - using available attributes
+        # Get match details from IPL schedule
+        match_date = ""
+        match_name = ""
+        
+        # Try to match the match with the schedule list by ID
+        if 0 < match.id <= len(ipl_schedule):
+            match_date, match_name = ipl_schedule[match.id - 1]
+        
+        # Basic match info
         match_info = {
             "id": match.id,
-            # Use match name or create one from teams if available
-            "name": getattr(match, 'name', f"Match #{match.id}"),
-            # Create teams display based on available attributes
-            "teams": getattr(match, 'teams', 
-                     getattr(match, 'team1', '') + " vs " + getattr(match, 'team2', '')
-                     if hasattr(match, 'team1') and hasattr(match, 'team2') else f"Match #{match.id}"),
+            "date": match_date,
+            "name": match_name,
             "rankings": []
         }
         
@@ -376,7 +380,6 @@ def match_rankings():
         match_data.append(match_info)
     
     return render_template("match_rankings.html", matches=match_data)
-
 
 if __name__ == "__main__":
     with app.app_context():

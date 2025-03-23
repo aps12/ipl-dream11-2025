@@ -4,14 +4,18 @@
 
 {% block content %}
 <div class="container mt-4">
-    <h1 class="mb-4">Match Rankings & Winnings</h1>
+    <h1 class="mb-4">IPL Match Rankings & Winnings</h1>
     
     {% if matches %}
         {% for match in matches %}
             <div class="card mb-4">
                 <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0">{{ match.name }}</h5>
-                    <small>{{ match.teams }}</small>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="mb-0">Match #{{ match.id }}: {{ match.name }}</h5>
+                            <small>{{ match.date }}</small>
+                        </div>
+                    </div>
                 </div>
                 <div class="card-body">
                     <h6 class="card-title mb-3">Rankings & Prize Distribution</h6>
