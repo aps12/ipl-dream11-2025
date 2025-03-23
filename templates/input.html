@@ -98,14 +98,14 @@
               {% for rank in [1, 2, 3, 4] %}
               <td>
                 <div id="rank{{ rank }}-container-{{ match.id }}">
-                  {% if match['rank_' ~ rank] %}
-                  <!-- Static Text if Already Submitted -->
+                  {% if match['rank_' ~ rank] and not match.edit_mode %}
+                  <!-- Static Text if Already Submitted and not in edit mode -->
                   <span class="static-text">{{ match['rank_' ~ rank] | join(', ') }}</span>
                   {% else %}
                   <!-- Editable Dropdown -->
                   <div class="dropdown">
                     <button class="btn btn-secondary dropdown-toggle btn-sm w-100" type="button" id="rank{{ rank }}Dropdown{{ match.id }}" data-bs-toggle="dropdown" aria-expanded="false" aria-labelledby="rank{{ rank }}Dropdown{{ match.id }}">
-                      Select Teams
+                      {% if match['rank_' ~ rank] %}{{ match['rank_' ~ rank] | join(', ') }}{% else %}Select Teams{% endif %}
                     </button>
                     <ul class="dropdown-menu" aria-labelledby="rank{{ rank }}Dropdown{{ match.id }}">
                       {% for team in teams %}
@@ -127,14 +127,26 @@
 
               <!-- Submit/Update Button -->
               <td>
-                <button type="submit" name="match_id" value="{{ match.id }}"
-                  class="btn {% if match.rank_1 %}btn-warning{% else %}btn-success{% endif %} btn-sm w-100">
-                  {% if match.rank_1 %}
+                {% if match.rank_1 and not match.edit_mode %}
+                <!-- Update button (when data exists and not in edit mode) -->
+                <button type="submit" name="action" value="edit_{{ match.id }}" 
+                  class="btn btn-warning btn-sm w-100">
                   Update
-                  {% else %}
-                  Submit
-                  {% endif %}
                 </button>
+                {% else %}
+                <!-- Submit button (when in edit mode or no data) -->
+                <button type="submit" name="action" value="submit_{{ match.id }}" 
+                  class="btn btn-success btn-sm w-100">
+                  Submit
+                </button>
+                <!-- Cancel button (only show in edit mode with existing data) -->
+                {% if match.rank_1 and match.edit_mode %}
+                <button type="submit" name="action" value="cancel_{{ match.id }}" 
+                  class="btn btn-secondary btn-sm w-100 mt-1">
+                  Cancel
+                </button>
+                {% endif %}
+                {% endif %}
               </td>
             </tr>
             {% endfor %}
@@ -169,9 +181,17 @@
         button.classList.add('btn-secondary');
       }
     }
+
+    // Initialize dropdowns with proper styling on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      const dropdowns = document.querySelectorAll('.dropdown-toggle');
+      dropdowns.forEach(button => {
+        if (button.textContent.trim() !== "Select Teams") {
+          button.classList.remove('btn-secondary');
+          button.classList.add('btn-success-light');
+        }
+      });
+    });
   </script>
 </body>
 </html>
-
-
-

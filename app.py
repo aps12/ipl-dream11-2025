@@ -133,39 +133,63 @@ def input_page():
         matches = Match.query.order_by(Match.match_date).all()
 
         if request.method == 'POST':
-            match_id = request.form.get('match_id')
-            match = Match.query.get(match_id)
+            action = request.form.get('action', '')
+            
+            # Handle different actions: edit, submit, cancel
+            if action.startswith('edit_'):
+                # Set edit mode for this match
+                match_id = action.split('_')[1]
+                return redirect(url_for('input_page', edit=match_id))
+                
+            elif action.startswith('submit_'):
+                # Process and save the form data
+                match_id = action.split('_')[1]
+                match = Match.query.get(match_id)
+                
+                if not match:
+                    flash("Match not found!", "danger")
+                    return redirect(url_for('input_page'))
 
-            if not match:
-                flash("Match not found!", "danger")
+                # Process ranks dynamically: Rank 1, 2, 3, 4
+                for rank in [1, 2, 3, 4]:
+                    field_name = f"rank{rank}_{match_id}"
+                    selected_teams = request.form.getlist(field_name)
+
+                    # Map rank number to the correct database field name
+                    if rank == 1:
+                        rank_field = "rank_1st"
+                    elif rank == 2:
+                        rank_field = "rank_2nd"
+                    elif rank == 3:
+                        rank_field = "rank_3rd"
+                    elif rank == 4:
+                        rank_field = "rank_4th"
+
+                    # Update the field with selected teams or empty string if none selected
+                    if selected_teams:
+                        setattr(match, rank_field, ','.join(selected_teams))
+                    else:
+                        setattr(match, rank_field, '')
+
+                # Commit changes to the database
+                db.session.commit()
+                flash(f"Rankings for Match {match_id} updated successfully!", "success")
                 return redirect(url_for('input_page'))
-
-            # Process ranks dynamically: Rank 1, 2, 3, 4
-            for rank in [1, 2, 3, 4]:
-                field_name = f"rank{rank}_{match_id}"
-                selected_teams = request.form.getlist(field_name)
-
-                # Dynamically generate rank field attribute name
-                rank_field = f"rank_{rank}st"  # Use consistent suffix naming as per the database model
-                if rank == 2:
-                    rank_field = f"rank_{rank}nd"
-                elif rank == 3:
-                    rank_field = f"rank_{rank}rd"
-                elif rank == 4:
-                    rank_field = f"rank_{rank}th"
-
-                # Update the field only if new values are provided
-                if selected_teams:
-                    setattr(match, rank_field, ','.join(selected_teams))
-
-            # Commit changes to the database
-            db.session.commit()
-            flash(f"Rankings for Match {match_id} updated successfully!", "success")
-            return redirect(url_for('input_page'))
-
+                
+            elif action.startswith('cancel_'):
+                # Cancel edit mode, return to view mode
+                return redirect(url_for('input_page'))
+            
+        # Check if any match is in edit mode from URL parameter
+        edit_match_id = request.args.get('edit')
+                
         # Prepare matches for rendering
-        match_data = [
-            {
+        match_data = []
+        for match in matches:
+            # Determine if this match is in edit mode
+            is_edit_mode = str(match.id) == edit_match_id if edit_match_id else False
+            
+            match_data.append({
                 "id": match.id,
                 "match_date": match.match_date.strftime('%d %B %Y'),
                 "teams_playing": match.teams_playing,
@@ -173,9 +197,8 @@ def input_page():
                 "rank_2": match.rank_2nd.split(',') if match.rank_2nd else [],
                 "rank_3": match.rank_3rd.split(',') if match.rank_3rd else [],
                 "rank_4": match.rank_4th.split(',') if match.rank_4th else [],
-            }
-            for match in matches
-        ]
+                "edit_mode": is_edit_mode
+            })
 
         return render_template("input.html", matches=match_data, teams=dream11_teams)
 
