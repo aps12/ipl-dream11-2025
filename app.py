@@ -26,8 +26,9 @@ class Match(db.Model):
 
 
 dream11_teams = [
-    "APS Gladiators01", "KHAL-DROGO", "nMnF11", "Beind Baibhav",
-    "Sanju Bawa XI", "11 SAFED TIGER", "HammerHeadsx1", "Shubham141193"
+    "APS Gladiators01", "Khal drogo 11", "nMnF11", "Beind Baibhav", "Sanju Bawa XI", "11 SAFED TIGER",
+    "HammerHeadsx1", "Shubham141193", "DEXTER UK01", "Massey1099", "LOVEDI LADS", "SANDE39642AB", 
+    "Rahul Blazers XI", "PRAVEER1001", "Apoorva11"
 ]
 
 ipl_schedule = [
