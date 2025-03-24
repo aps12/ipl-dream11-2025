@@ -47,75 +47,101 @@ def monitor_and_push_changes():
         time.sleep(CHECK_INTERVAL)
 
 
+import os
+import subprocess
+from datetime import datetime
+from threading import Lock
+
+# Add a lock to prevent multiple Git operations running concurrently
+git_lock = Lock()
+
 def commit_and_push_to_git():
     """
     Handles git operations to stage, commit, and push the database file to the remote repository.
+    Ensures only one thread/process interacts with Git commands at a time.
     Explicitly pushes changes to the `main` branch.
     """
-    try:
-        # Dynamically detect the current working directory
-        repo_local_path = os.getcwd()
-        os.chdir(repo_local_path)
-
-        # Ensure the Git repository is reinitialized and clean
-        print("Reinitializing git repository.")
-        subprocess.run(["git", "init"], check=True)
-
-        # Add a .gitignore file, if it doesn't exist
-        if not os.path.exists(".gitignore"):
-            print("Creating .gitignore file.")
-            with open(".gitignore", "w") as gitignore:
-                gitignore.write("env/\n*.pyc\n__pycache__/\ninstance/*.db\n")
-
-        # Ensure repository is clean
-        print("Cleaning untracked files and resetting repository.")
-        subprocess.run(["git", "clean", "-fd"], check=True)
-        subprocess.run(["git", "reset", "--hard"], check=True)
-
-        # Set Git username and email globally
-        subprocess.run(["git", "config", "--global", "user.name", "RenderApp"], check=True)
-        subprocess.run(["git", "config", "--global", "user.email", "your_email@example.com"], check=True)
-
-        # Set the remote URL (dynamically resolve it from environment variables)
-        remote_url = os.getenv(
-            "GIT_REMOTE_URL",
-            "https://<username>:<personal_access_token>@github.com/<username>/<repo>.git"
-        )
+    with git_lock:  # Ensure only one Git operation at a time
         try:
-            # Check if remote origin exists
-            result = subprocess.run(["git", "remote", "get-url", "origin"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            if result.returncode == 0:
-                print("Updating remote origin URL.")
-                subprocess.run(["git", "remote", "set-url", "origin", remote_url], check=True)
+            # Dynamically detect the current working directory
+            repo_local_path = os.getcwd()
+            os.chdir(repo_local_path)
+
+            # Reinitialize the Git repository if necessary
+            print("Reinitializing git repository.")
+            subprocess.run(["git", "init"], check=True)
+
+            # Add or update a .gitignore file to exclude unnecessary and conflicting files
+            gitignore_path = ".gitignore"
+            gitignore_entry = "instance/*.db\n"
+            if not os.path.exists(gitignore_path):
+                print("Creating .gitignore file.")
+                with open(gitignore_path, "w") as gitignore:
+                    gitignore.write(gitignore_entry)
             else:
-                print("Adding remote origin URL.")
-                subprocess.run(["git", "remote", "add", "origin", remote_url], check=True)
+                with open(gitignore_path, "r") as gitignore:
+                    gitignore_contents = gitignore.read()
+                if gitignore_entry.strip() not in gitignore_contents:  # Avoid duplicate entries
+                    with open(gitignore_path, "a") as gitignore:
+                        gitignore.write(gitignore_entry)
+
+            # Ensure repository is clean, but **skip resetting locked files like the SQLite DB**
+            print("Skipping `git clean` and `git reset` for database file to avoid conflicts.")
+            # If a reset is absolutely necessary, ensure the database session is closed first.
+
+            # Configure Git username and email globally (only for the first time)
+            subprocess.run(["git", "config", "--global", "user.name", "RenderApp"], check=True)
+            subprocess.run(["git", "config", "--global", "user.email", "your_email@example.com"], check=True)
+
+            # Set the remote URL dynamically (fallback to environment variable or prompt)
+            remote_url = os.getenv(
+                "GIT_REMOTE_URL",
+                "https://aps12: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@github.com/aps12/ipl-dream11-2025.git"
+            )
+            try:
+                # Check if remote origin exists
+                result = subprocess.run(["git", "remote", "get-url", "origin"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                if result.returncode == 0:
+                    print("Updating remote origin URL.")
+                    subprocess.run(["git", "remote", "set-url", "origin", remote_url], check=True)
+                else:
+                    print("Adding remote origin URL.")
+                    subprocess.run(["git", "remote", "add", "origin", remote_url], check=True)
+            except Exception as e:
+                print(f"Error setting up remote origin: {e}")
+
+            # Stage all changes
+            print(f"Staging changes for: {DB_FILE_PATH}")
+            subprocess.run(["git", "add", DB_FILE_PATH], check=True)
+
+            # Check if there are changes to commit
+            status_result = subprocess.run(["git", "status", "--porcelain"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            if status_result.stdout.strip():
+                print("Changes detected. Committing changes.")
+                commit_message = f"Update database file at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                subprocess.run(["git", "commit", "-m", commit_message], check=True)
+            else:
+                print("No changes detected. Skipping commit step.")
+
+            # Push the changes to the `main` branch
+            print("Pushing changes to the `main` branch of the remote repository...")
+            subprocess.run(["git", "push", "-u", "origin", "main"], check=True)
+
+            print(f"Database file pushed to the `main` branch at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
+        except subprocess.CalledProcessError as e:
+            print(f"Error during Git operations: {e}")
+
+            # Handle situations where `.git/index.lock` might block operations
+            if "index.lock" in str(e):
+                lock_file = os.path.join(repo_local_path, ".git", "index.lock")
+                if os.path.exists(lock_file):
+                    print("Removing stale Git lock file.")
+                    os.remove(lock_file)
+            raise e
+
         except Exception as e:
-            print(f"Error setting up remote origin: {e}")
-
-        # Stage the changes
-        print(f"Staging changes for: {DB_FILE_PATH}")
-        subprocess.run(["git", "add", DB_FILE_PATH], check=True)
-
-        # Check if there are changes to commit
-        status_result = subprocess.run(["git", "status", "--porcelain"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        if status_result.stdout.strip():
-            print("Changes detected. Committing changes.")
-            commit_message = f"Update database file at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-            subprocess.run(["git", "commit", "-m", commit_message], check=True)
-        else:
-            print("No changes detected. Skipping commit step.")
-
-        # Push the changes to the `main` branch
-        print("Pushing changes to the `main` branch of the remote repository...")
-        subprocess.run(["git", "push", "-u", "origin", "main"], check=True)
-
-        print(f"Database file pushed to the `main` branch at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-
-    except subprocess.CalledProcessError as e:
-        print(f"Error during Git operations: {e}")
-    except Exception as e:
-        print(f"Unexpected error while pushing to Git: {e}")
+            print(f"Unexpected error while pushing to Git: {e}")
 
 # Start the file monitoring thread when the app starts
 Thread(target=monitor_and_push_changes, daemon=True).start()
