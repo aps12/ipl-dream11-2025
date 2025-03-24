@@ -57,26 +57,54 @@ def commit_and_push_to_git():
         repo_local_path = os.getcwd()
         os.chdir(repo_local_path)
 
-        # Initialize the Git repository if not already initialized
-        print("Initializing git repository if not already set.")
+        # Ensure the Git repository is reinitialized and clean
+        print("Reinitializing git repository.")
         subprocess.run(["git", "init"], check=True)
+
+        # Add a .gitignore file, if it doesn't exist
+        if not os.path.exists(".gitignore"):
+            print("Creating .gitignore file.")
+            with open(".gitignore", "w") as gitignore:
+                gitignore.write("env/\n*.pyc\n__pycache__/\ninstance/*.db\n")
+
+        # Ensure repository is clean
+        print("Cleaning untracked files and resetting repository.")
+        subprocess.run(["git", "clean", "-fd"], check=True)
+        subprocess.run(["git", "reset", "--hard"], check=True)
+
+        # Set Git username and email globally
         subprocess.run(["git", "config", "--global", "user.name", "RenderApp"], check=True)
         subprocess.run(["git", "config", "--global", "user.email", "your_email@example.com"], check=True)
 
-        # Set the remote URL (Use SSH or HTTPS based on authentication method)
+        # Set the remote URL (dynamically resolve it from environment variables)
         remote_url = os.getenv(
             "GIT_REMOTE_URL",
             "https://<username>:<personal_access_token>@github.com/<username>/<repo>.git"
-        )  # Replace with your GitHub repository URL
-        subprocess.run(["git", "remote", "add", "origin", remote_url], check=True)
+        )
+        try:
+            # Check if remote origin exists
+            result = subprocess.run(["git", "remote", "get-url", "origin"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            if result.returncode == 0:
+                print("Updating remote origin URL.")
+                subprocess.run(["git", "remote", "set-url", "origin", remote_url], check=True)
+            else:
+                print("Adding remote origin URL.")
+                subprocess.run(["git", "remote", "add", "origin", remote_url], check=True)
+        except Exception as e:
+            print(f"Error setting up remote origin: {e}")
 
         # Stage the changes
         print(f"Staging changes for: {DB_FILE_PATH}")
         subprocess.run(["git", "add", DB_FILE_PATH], check=True)
 
-        # Commit the changes with a timestamp
-        commit_message = f"Update database file at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-        subprocess.run(["git", "commit", "-m", commit_message], check=True)
+        # Check if there are changes to commit
+        status_result = subprocess.run(["git", "status", "--porcelain"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if status_result.stdout.strip():
+            print("Changes detected. Committing changes.")
+            commit_message = f"Update database file at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+            subprocess.run(["git", "commit", "-m", commit_message], check=True)
+        else:
+            print("No changes detected. Skipping commit step.")
 
         # Push the changes to the `main` branch
         print("Pushing changes to the `main` branch of the remote repository...")
@@ -88,7 +116,6 @@ def commit_and_push_to_git():
         print(f"Error during Git operations: {e}")
     except Exception as e:
         print(f"Unexpected error while pushing to Git: {e}")
-
 
 # Start the file monitoring thread when the app starts
 Thread(target=monitor_and_push_changes, daemon=True).start()
