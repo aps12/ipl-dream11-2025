@@ -50,32 +50,45 @@ def monitor_and_push_changes():
 def commit_and_push_to_git():
     """
     Handles git operations to stage, commit, and push the database file to the remote repository.
+    Explicitly pushes changes to the `main` branch.
     """
     try:
         # Dynamically detect the current working directory
         repo_local_path = os.getcwd()
-
-        # Change the working directory to the local repository
         os.chdir(repo_local_path)
 
+        # Initialize the Git repository if not already initialized
+        print("Initializing git repository if not already set.")
+        subprocess.run(["git", "init"], check=True)
+        subprocess.run(["git", "config", "--global", "user.name", "RenderApp"], check=True)
+        subprocess.run(["git", "config", "--global", "user.email", "your_email@example.com"], check=True)
+
+        # Set the remote URL (Use SSH or HTTPS based on authentication method)
+        remote_url = os.getenv(
+            "GIT_REMOTE_URL",
+            "https://<username>:<personal_access_token>@github.com/<username>/<repo>.git"
+        )  # Replace with your GitHub repository URL
+        subprocess.run(["git", "remote", "add", "origin", remote_url], check=True)
+
         # Stage the changes
+        print(f"Staging changes for: {DB_FILE_PATH}")
         subprocess.run(["git", "add", DB_FILE_PATH], check=True)
 
-        # Commit the changes
+        # Commit the changes with a timestamp
         commit_message = f"Update database file at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
         subprocess.run(["git", "commit", "-m", commit_message], check=True)
 
-        # Push the changes to the remote repository
-        subprocess.run(["git", "push"], check=True)
+        # Push the changes to the `main` branch
+        print("Pushing changes to the `main` branch of the remote repository...")
+        subprocess.run(["git", "push", "-u", "origin", "main"], check=True)
 
-        print(f"Database file pushed to GitHub at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"Database file pushed to the `main` branch at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
     except subprocess.CalledProcessError as e:
         print(f"Error during Git operations: {e}")
     except Exception as e:
         print(f"Unexpected error while pushing to Git: {e}")
-
-
+        
 # Start the file monitoring thread when the app starts
 Thread(target=monitor_and_push_changes, daemon=True).start()
 
