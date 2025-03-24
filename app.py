@@ -96,7 +96,7 @@ def commit_and_push_to_git():
             # Set the remote URL dynamically (fallback to environment variable or prompt)
             remote_url = os.getenv(
                 "GIT_REMOTE_URL",
-                "https://aps12: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@github.com/aps12/ipl-dream11-2025.git"
+                "https://aps12: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@github.com/aps12/ipl-dream11-2025.git"
             )
             try:
                 # Check if remote origin exists
