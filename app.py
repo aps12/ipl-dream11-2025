@@ -1,18 +1,85 @@
+import os
+import subprocess
+import time
+from threading import Thread
 from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
-
 app = Flask(__name__)
 app.secret_key = 'k'  # Required for using session
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///ipl_betting.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.secret_key = 'some_secret_key'
+app.secret_key = 'k'
 
 db = SQLAlchemy(app)
 
 from flask import session, redirect, url_for, request, render_template
 
 PASSWORD = "k" 
+
+# Accessible database file location
+DB_FILE_PATH = "instance/ipl_betting.db"
+# CHECK_INTERVAL = 10 * 60  # 10 minutes interval for checking file changes
+CHECK_INTERVAL = 10   # 10 sec interval for checking file changes
+
+# Git Automation Logic
+def monitor_and_push_changes():
+    """
+    Monitors changes in the database file and commits/pushes to the Git repository when changes are detected.
+    """
+    last_modified_time = None
+    while True:
+        try:
+            # Get the current modification time of the database file
+            current_modified_time = os.path.getmtime(DB_FILE_PATH)
+
+            # If file has been changed since the last check
+            if last_modified_time is None or current_modified_time > last_modified_time:
+                last_modified_time = current_modified_time
+
+                # Perform Git operations to add, commit, and push changes
+                commit_and_push_to_git()
+
+        except Exception as e:
+            print(f"Error in monitoring file changes: {e}")
+
+        # Wait for the specified interval
+        time.sleep(CHECK_INTERVAL)
+
+
+def commit_and_push_to_git():
+    """
+    Handles git operations to stage, commit, and push the database file to the remote repository.
+    """
+    try:
+        # Dynamically detect the current working directory
+        repo_local_path = os.getcwd()
+
+        # Change the working directory to the local repository
+        os.chdir(repo_local_path)
+
+        # Stage the changes
+        subprocess.run(["git", "add", DB_FILE_PATH], check=True)
+
+        # Commit the changes
+        commit_message = f"Update database file at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        subprocess.run(["git", "commit", "-m", commit_message], check=True)
+
+        # Push the changes to the remote repository
+        subprocess.run(["git", "push"], check=True)
+
+        print(f"Database file pushed to GitHub at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
+    except subprocess.CalledProcessError as e:
+        print(f"Error during Git operations: {e}")
+    except Exception as e:
+        print(f"Unexpected error while pushing to Git: {e}")
+
+
+# Start the file monitoring thread when the app starts
+Thread(target=monitor_and_push_changes, daemon=True).start()
+
+
 
 class Match(db.Model):
     id = db.Column(db.Integer, primary_key=True)
