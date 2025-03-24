@@ -55,6 +55,7 @@ from threading import Lock
 # Add a lock to prevent multiple Git operations running concurrently
 git_lock = Lock()
 
+
 def commit_and_push_to_git():
     """
     Handles git operations to stage, commit, and push the database file to the remote repository.
@@ -85,49 +86,47 @@ def commit_and_push_to_git():
                     with open(gitignore_path, "a") as gitignore:
                         gitignore.write(gitignore_entry)
 
-            # Ensure repository is clean, but **skip resetting locked files like the SQLite DB**
-            print("Skipping `git clean` and `git reset` for database file to avoid conflicts.")
-            # If a reset is absolutely necessary, ensure the database session is closed first.
-
-            # Configure Git username and email globally (only for the first time)
+            # Configure Git username and email (only if not already configured)
             subprocess.run(["git", "config", "--global", "user.name", "RenderApp"], check=True)
             subprocess.run(["git", "config", "--global", "user.email", "your_email@example.com"], check=True)
 
-            # Set the remote URL dynamically (fallback to environment variable or prompt)
+            # Set the remote URL dynamically
             remote_url = os.getenv(
                 "GIT_REMOTE_URL",
                 "https://aps12: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@github.com/aps12/ipl-dream11-2025.git"
             )
-            try:
-                # Check if remote origin exists
-                result = subprocess.run(["git", "remote", "get-url", "origin"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                if result.returncode == 0:
-                    print("Updating remote origin URL.")
-                    subprocess.run(["git", "remote", "set-url", "origin", remote_url], check=True)
-                else:
-                    print("Adding remote origin URL.")
-                    subprocess.run(["git", "remote", "add", "origin", remote_url], check=True)
-            except Exception as e:
-                print(f"Error setting up remote origin: {e}")
 
-            # Stage all changes
+            # Check if the remote origin already exists
+            result = subprocess.run(["git", "remote", "get-url", "origin"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            if result.returncode == 0:
+                # If `origin` exists, update it
+                print("Remote origin already exists. Updating remote origin URL.")
+                subprocess.run(["git", "remote", "set-url", "origin", remote_url], check=True)
+            else:
+                # If `origin` doesn't exist, add it
+                print("Adding remote origin URL.")
+                subprocess.run(["git", "remote", "add", "origin", remote_url], check=True)
+
+            # Stage changes
             print(f"Staging changes for: {DB_FILE_PATH}")
             subprocess.run(["git", "add", DB_FILE_PATH], check=True)
 
             # Check if there are changes to commit
             status_result = subprocess.run(["git", "status", "--porcelain"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             if status_result.stdout.strip():
+                # Commit the changes if there are modifications
                 print("Changes detected. Committing changes.")
                 commit_message = f"Update database file at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
                 subprocess.run(["git", "commit", "-m", commit_message], check=True)
             else:
+                # No changes to commit
                 print("No changes detected. Skipping commit step.")
 
             # Push the changes to the `main` branch
-            print("Pushing changes to the `main` branch of the remote repository...")
+            print("Pushing changes to the `main` branch...")
             subprocess.run(["git", "push", "-u", "origin", "main"], check=True)
 
-            print(f"Database file pushed to the `main` branch at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            print(f"Database file successfully pushed to the `main` branch at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
         except subprocess.CalledProcessError as e:
             print(f"Error during Git operations: {e}")
@@ -142,6 +141,8 @@ def commit_and_push_to_git():
 
         except Exception as e:
             print(f"Unexpected error while pushing to Git: {e}")
+            raise e
+
 
 # Start the file monitoring thread when the app starts
 Thread(target=monitor_and_push_changes, daemon=True).start()
