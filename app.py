@@ -1,43 +1,37 @@
 import os
-import subprocess
-import time
-from threading import Thread
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, session
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
-import base64
 
+# Initialize Flask app
 app = Flask(__name__)
-app.secret_key = 'k'  # Required for using session
-# Get the absolute path of the current script
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-DB_PATH = os.path.join(BASE_DIR, "var", "data", "ipl_betting.db")
+app.secret_key = 'k'  # Required for session management
 
-app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{DB_PATH}'
-
+# PostgreSQL Configuration
+app.config['SQLALCHEMY_DATABASE_URI'] = (
+    'postgresql://ipl_pg_db_user:ouTA3DieDxXwVMxg0VIfoRWMlwhZf8Gk'
+    '@dpg-cvh737jv2p9s7382os50-a.oregon-postgres.render.com/ipl_pg_db'
+)
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.secret_key = 'k'
 
+# Initialize SQLAlchemy
 db = SQLAlchemy(app)
 
-from flask import session, redirect, url_for, request, render_template
-
-PASSWORD = "k" 
-
+# Model Definition
 class Match(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     match_date = db.Column(db.Date)
     teams_playing = db.Column(db.String(255))
-    
     rank_1st = db.Column(db.String(255))  # Store multiple teams as comma-separated values
     rank_2nd = db.Column(db.String(255))
     rank_3rd = db.Column(db.String(255))
     rank_4th = db.Column(db.String(255))
 
 
+# Dream11 Teams and IPL Schedule
 dream11_teams = [
     "APS Gladiators01", "Khal drogo 11", "nMnF11", "Beind Baibhav", "Sanju Bawa XI", "11 SAFED TIGER",
-    "HammerHeadsx1", "Shubham141193", "DEXTER UK01", "Massey1099", "LOVEDI LADS", "SANDE39642AB", 
+    "HammerHeadsx1", "Shubham141193", "DEXTER UK01", "Massey1099", "LOVEDI LADS", "SANDE39642AB",
     "Rahul Blazers XI", "PRAVEER1001", "Apoorva11"
 ]
 
@@ -69,17 +63,6 @@ ipl_schedule = [
     ("23 May 2025", "Qualifier 2"), ("25 May 2025", "Final")
 ]
 
-
-matches = [
-    {"id": idx + 1, "match_date": date, "teams_playing": teams, "ranks": {1: [], 2: [], 3: [], 4: []}}
-    for idx, (date, teams) in enumerate(ipl_schedule)
-]
-
-teams = [
-    "APS Gladiators01", "KHAL-DROGO", "nMnF11", "Beind Baibhav",
-    "Sanju Bawa XI", "11 SAFED TIGER", "HammerHeadsx1", "Shubham141193"
-]
-
 # Ensure database and matches are created
 with app.app_context():
     db.create_all()
@@ -88,7 +71,6 @@ with app.app_context():
             match = Match(match_date=datetime.strptime(date, "%d %B %Y").date(), teams_playing=teams)
             db.session.add(match)
         db.session.commit()
-
 
 def calculate_winnings():
     winnings = {
@@ -176,18 +158,18 @@ def calculate_winnings():
 @app.route('/')
 def index():
     matches = Match.query.all()
-    winnings = calculate_winnings()
+    winnings = calculate_winnings()  # Calculate the winnings
 
-    # Sort winnings dictionary by "Net Winning" in descending order
+    # Sort winnings and pass data to the Jinja2 template
     sorted_winnings = dict(sorted(winnings.items(), key=lambda x: x[1]["Net Winning"], reverse=True))
 
-    completed_matches = sum(1 for match in matches if match.rank_1st and match.rank_2nd and match.rank_3rd)
+    completed_matches = sum(1 for match in matches if match.rank_1st and match.rank_2nd and match.rank_3rd and match.rank_4th)
     pending_matches = len(matches) - completed_matches
 
     return render_template(
         'index.html',
         matches=matches,
-        winnings=sorted_winnings,  # Now sorted
+        winnings=sorted_winnings,  # Pass winnings to template
         completed_matches=completed_matches,
         pending_matches=pending_matches
     )
@@ -287,6 +269,9 @@ def input_page():
         print(f"Error in `/input` route: {e}")
         return "An error occurred", 500
 
+# Add this to your Flask app routes
+
+# Add this to your Flask app routes
 
 @app.route("/match-rankings")
 def match_rankings():
@@ -390,5 +375,5 @@ def match_rankings():
 
 if __name__ == "__main__":
     with app.app_context():
-        db.create_all()
+        db.create_all()  # Ensure tables are created
     app.run(debug=True)
