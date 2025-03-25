@@ -90,8 +90,24 @@
             </tr>
           </thead>
           <tbody>
-            {% for match in matches %}
-            <tr>
+          {% for match in matches %}
+          <tr>
+            <!-- Static text for all columns when no submit button -->
+            {% if match.rank_1 and not match.edit_mode %}
+              <td>{{ match.match_date }}</td>
+              <td>{{ match.teams_playing }}</td>
+              <td class="static-text">{{ match.rank_1 | join(', ') or '-' }}</td>
+              <td class="static-text">{{ match.rank_2 | join(', ') or '-' }}</td>
+              <td class="static-text">{{ match.rank_3 | join(', ') or '-' }}</td>
+              <td class="static-text">{{ match.rank_4 | join(', ') or '-' }}</td>
+              <td>
+                <button type="submit" name="action" value="edit_{{ match.id }}" 
+                  class="btn btn-warning btn-sm w-100">
+                  Update
+                </button>
+              </td>
+            {% else %}
+              <!-- Existing editable row logic -->
               <td>{{ match.match_date }}</td>
               <td>{{ match.teams_playing }}</td>
 
@@ -149,8 +165,9 @@
                 {% endif %}
                 {% endif %}
               </td>
-            </tr>
-            {% endfor %}
+            {% endif %}
+          </tr>
+          {% endfor %}
           </tbody>
         </table>
       </div>
