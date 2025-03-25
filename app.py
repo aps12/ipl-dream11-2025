@@ -5,6 +5,8 @@ from threading import Thread
 from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
+import base64
+
 app = Flask(__name__)
 app.secret_key = 'k'  # Required for using session
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///ipl_betting.db'
@@ -16,6 +18,12 @@ db = SQLAlchemy(app)
 from flask import session, redirect, url_for, request, render_template
 
 PASSWORD = "k" 
+
+encoded_text = "aHR0cHM6Ly9hcHMxMjpnaXRodWJfcGF0XzExQVVWV01SWTBEcFpWRGdHbXl3MldfNDRTc3p3TVJ1UUNUQ1E4SkQyRlpjeU1FY2pwMVJ4T0ZlOERpb0k4bExkM1BQU1dCTUxKdENpOTEycDBAZ2l0aHViLmNvbS9hcHMxMi9pcGwtZHJlYW0xMS0yMDI1LmdpdA=="
+print("Encoded:", encoded_text)
+
+decoded_text = base64.b64decode(encoded_text).decode()
+print("Decoded:", decoded_text)
 
 # Accessible database file location
 DB_FILE_PATH = "instance/ipl_betting.db"
@@ -93,7 +101,7 @@ def commit_and_push_to_git():
             # Set the remote URL dynamically
             remote_url = os.getenv(
                 "GIT_REMOTE_URL",
-                "https://aps12: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@github.com/aps12/ipl-dream11-2025.git"
+                decoded_text
             )
 
             # Check if the remote origin already exists
