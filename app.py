@@ -1,161 +1,19 @@
 import os
-import subprocess
-import time
 from threading import Thread
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, session
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
-import base64
 
 app = Flask(__name__)
 app.secret_key = 'k'  # Required for using session
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///ipl_betting.db'
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))  # Get the absolute path of your project directory
+DB_PATH = os.path.join(BASE_DIR, "var", "data", "ipl_betting.db")
+
+app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{DB_PATH}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.secret_key = 'k'
 
 db = SQLAlchemy(app)
-
-from flask import session, redirect, url_for, request, render_template
-
-PASSWORD = "k" 
-
-encoded_text = "aHR0cHM6Ly9hcHMxMjpnaXRodWJfcGF0XzExQVVWV01SWTBEcFpWRGdHbXl3MldfNDRTc3p3TVJ1UUNUQ1E4SkQyRlpjeU1FY2pwMVJ4T0ZlOERpb0k4bExkM1BQU1dCTUxKdENpOTEycDBAZ2l0aHViLmNvbS9hcHMxMi9pcGwtZHJlYW0xMS0yMDI1LmdpdA=="
-print("Encoded:", encoded_text)
-
-decoded_text = base64.b64decode(encoded_text).decode()
-print("Decoded:", decoded_text)
-
-# Accessible database file location
-DB_FILE_PATH = "instance/ipl_betting.db"
-# CHECK_INTERVAL = 10 * 60  # 10 minutes interval for checking file changes
-CHECK_INTERVAL = 10   # 10 sec interval for checking file changes
-
-# Git Automation Logic
-def monitor_and_push_changes():
-    """
-    Monitors changes in the database file and commits/pushes to the Git repository when changes are detected.
-    """
-    last_modified_time = None
-    while True:
-        try:
-            # Get the current modification time of the database file
-            current_modified_time = os.path.getmtime(DB_FILE_PATH)
-
-            # If file has been changed since the last check
-            if last_modified_time is None or current_modified_time > last_modified_time:
-                last_modified_time = current_modified_time
-
-                # Perform Git operations to add, commit, and push changes
-                commit_and_push_to_git()
-
-        except Exception as e:
-            print(f"Error in monitoring file changes: {e}")
-
-        # Wait for the specified interval
-        time.sleep(CHECK_INTERVAL)
-
-
-import os
-import subprocess
-from datetime import datetime
-from threading import Lock
-
-# Add a lock to prevent multiple Git operations running concurrently
-git_lock = Lock()
-
-
-def commit_and_push_to_git():
-    """
-    Handles git operations to stage, commit, and push the database file to the remote repository.
-    Ensures only one thread/process interacts with Git commands at a time.
-    Explicitly pushes changes to the `main` branch.
-    """
-    with git_lock:  # Ensure only one Git operation at a time
-        try:
-            # Dynamically detect the current working directory
-            repo_local_path = os.getcwd()
-            os.chdir(repo_local_path)
-
-            # Reinitialize the Git repository if necessary
-            print("Reinitializing git repository.")
-            subprocess.run(["git", "init"], check=True)
-
-            # Add or update a .gitignore file to exclude unnecessary and conflicting files
-            gitignore_path = ".gitignore"
-            gitignore_entry = "instance/*.db\n"
-            if not os.path.exists(gitignore_path):
-                print("Creating .gitignore file.")
-                with open(gitignore_path, "w") as gitignore:
-                    gitignore.write(gitignore_entry)
-            else:
-                with open(gitignore_path, "r") as gitignore:
-                    gitignore_contents = gitignore.read()
-                if gitignore_entry.strip() not in gitignore_contents:  # Avoid duplicate entries
-                    with open(gitignore_path, "a") as gitignore:
-                        gitignore.write(gitignore_entry)
-
-            # Configure Git username and email (only if not already configured)
-            subprocess.run(["git", "config", "--global", "user.name", "abhay"], check=True)
-            subprocess.run(["git", "config", "--global", "user.email", "abhay.singh012@gmail.com"], check=True)
-
-            # Set the remote URL dynamically
-            remote_url = os.getenv(
-                "GIT_REMOTE_URL",
-                decoded_text
-            )
-
-            # Check if the remote origin already exists
-            result = subprocess.run(["git", "remote", "get-url", "origin"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            if result.returncode == 0:
-                # If `origin` exists, update it
-                print("Remote origin already exists. Updating remote origin URL.")
-                subprocess.run(["git", "remote", "set-url", "origin", remote_url], check=True)
-            else:
-                # If `origin` doesn't exist, add it
-                print("Adding remote origin URL.")
-                subprocess.run(["git", "remote", "add", "origin", remote_url], check=True)
-
-            # Stage changes
-            print(f"Staging changes for: {DB_FILE_PATH}")
-            subprocess.run(["git", "add", DB_FILE_PATH], check=True)
-
-            # Check if there are changes to commit
-            status_result = subprocess.run(["git", "status", "--porcelain"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            if status_result.stdout.strip():
-                # Commit the changes if there are modifications
-                print("Changes detected. Committing changes.")
-                commit_message = f"Update database file at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-                subprocess.run(["git", "commit", "-m", commit_message], check=True)
-            else:
-                # No changes to commit
-                print("No changes detected. Skipping commit step.")
-
-            # Push the changes to the `main` branch
-            print("Pushing changes to the `main` branch...")
-            subprocess.run(["git", "push", "-u", "origin", "main"], check=True)
-
-            print(f"Database file successfully pushed to the `main` branch at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-
-        except subprocess.CalledProcessError as e:
-            print(f"Error during Git operations: {e}")
-
-            # Handle situations where `.git/index.lock` might block operations
-            if "index.lock" in str(e):
-                lock_file = os.path.join(repo_local_path, ".git", "index.lock")
-                if os.path.exists(lock_file):
-                    print("Removing stale Git lock file.")
-                    os.remove(lock_file)
-            raise e
-
-        except Exception as e:
-            print(f"Unexpected error while pushing to Git: {e}")
-            raise e
-
-
-# Start the file monitoring thread when the app starts
-Thread(target=monitor_and_push_changes, daemon=True).start()
-
-
 
 class Match(db.Model):
     id = db.Column(db.Integer, primary_key=True)
