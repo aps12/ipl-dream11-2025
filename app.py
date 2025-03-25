@@ -14,6 +14,8 @@ app.config['SQLALCHEMY_DATABASE_URI'] = (
 )
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+PASSWORD  = 'k'  # Password for editing match rankings
+
 # Initialize SQLAlchemy
 db = SQLAlchemy(app)
 
@@ -269,30 +271,35 @@ def input_page():
         print(f"Error in `/input` route: {e}")
         return "An error occurred", 500
 
-# Add this to your Flask app routes
-
-# Add this to your Flask app routes
-
 @app.route("/match-rankings")
 def match_rankings():
-    # Get all matches
-    matches = Match.query.all()
+    # Get all matches with rankings
+    matches = Match.query.filter(
+        (Match.rank_1st.isnot(None) & (Match.rank_1st != '')) |
+        (Match.rank_2nd.isnot(None) & (Match.rank_2nd != '')) |
+        (Match.rank_3rd.isnot(None) & (Match.rank_3rd != '')) |
+        (Match.rank_4th.isnot(None) & (Match.rank_4th != ''))
+    ).order_by(Match.match_date).all()
+    
+    # Winnings amounts for each rank
+    winnings_amount = {"Rank1": 300, "Rank2": 200, "Rank3": 150, "Rank4": 100}
     
     # Prepare data for template
     match_data = []
-    
-    winnings_amount = {"Rank1": 300, "Rank2": 200, "Rank3": 150, "Rank4": 100}
     
     for match in matches:
         # Get match details from IPL schedule
         match_date = ""
         match_name = ""
         
-        # Try to match the match with the schedule list by ID
-        if 0 < match.id <= len(ipl_schedule):
-            match_date, match_name = ipl_schedule[match.id - 1]
+        # Try to match the match with the schedule list
+        for schedule_date, schedule_match in ipl_schedule:
+            if match.teams_playing == schedule_match and match.match_date == datetime.strptime(schedule_date, "%d %B %Y").date():
+                match_date = schedule_date
+                match_name = schedule_match
+                break
         
-        # Basic match info
+        # Prepare match info
         match_info = {
             "id": match.id,
             "date": match_date,
@@ -300,38 +307,28 @@ def match_rankings():
             "rankings": []
         }
         
-        # Get ranks, handling comma-separated values for ties
+        # Get ranks, handling potential comma-separated values for ties
         rank_fields = [
-            {"name": "Rank1", "teams": match.rank_1st, "amount": winnings_amount["Rank1"]},
-            {"name": "Rank2", "teams": match.rank_2nd, "amount": winnings_amount["Rank2"]},
-            {"name": "Rank3", "teams": match.rank_3rd, "amount": winnings_amount["Rank3"]},
-            {"name": "Rank4", "teams": match.rank_4th, "amount": winnings_amount["Rank4"]}
+            {"name": "Rank 1", "teams": match.rank_1st, "amount": winnings_amount["Rank1"]},
+            {"name": "Rank 2", "teams": match.rank_2nd, "amount": winnings_amount["Rank2"]},
+            {"name": "Rank 3", "teams": match.rank_3rd, "amount": winnings_amount["Rank3"]},
+            {"name": "Rank 4", "teams": match.rank_4th, "amount": winnings_amount["Rank4"]}
         ]
         
         # Process each rank (handling ties)
         skip_ranks = 0
-        for i, rank in enumerate(rank_fields):
+        for rank_idx, rank in enumerate(rank_fields):
             if skip_ranks > 0:
                 skip_ranks -= 1
                 continue
                 
             if not rank["teams"]:
-                match_info["rankings"].append({
-                    "rank": rank["name"],
-                    "teams": "None",
-                    "prize": "₹0"
-                })
                 continue
                 
             # Get all teams at this rank (handle ties)
             teams_at_rank = [team.strip() for team in rank["teams"].split(',') if team.strip()]
             
             if not teams_at_rank:
-                match_info["rankings"].append({
-                    "rank": rank["name"],
-                    "teams": "None",
-                    "prize": "₹0"
-                })
                 continue
                 
             # If multiple teams at this rank, it's a tie
@@ -343,9 +340,9 @@ def match_rankings():
                 teams_in_tie = len(teams_at_rank)
                 
                 # In a tie, combine this rank with subsequent ranks
-                for j in range(teams_in_tie):
-                    if i + j < 4:  # Ensure we don't go beyond Rank4
-                        ranks_to_combine.append(rank_fields[i + j])
+                for i in range(teams_in_tie):
+                    if rank_idx + i < 4:  # Ensure we don't go beyond Rank4
+                        ranks_to_combine.append(rank_fields[rank_idx + i])
                 
                 # Calculate the combined prize pool
                 prize_pool = sum(r["amount"] for r in ranks_to_combine)
@@ -369,7 +366,9 @@ def match_rankings():
                     "prize": f"₹{rank['amount']}"
                 })
         
-        match_data.append(match_info)
+        # Only add match to data if it has rankings
+        if match_info["rankings"]:
+            match_data.append(match_info)
     
     return render_template("match_rankings.html", matches=match_data)
 
