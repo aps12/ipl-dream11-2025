@@ -87,13 +87,13 @@ def commit_and_push_to_git():
                         gitignore.write(gitignore_entry)
 
             # Configure Git username and email (only if not already configured)
-            subprocess.run(["git", "config", "--global", "user.name", "RenderApp"], check=True)
-            subprocess.run(["git", "config", "--global", "user.email", "your_email@example.com"], check=True)
+            subprocess.run(["git", "config", "--global", "user.name", "abhay"], check=True)
+            subprocess.run(["git", "config", "--global", "user.email", "abhay.singh012@gmail.com"], check=True)
 
             # Set the remote URL dynamically
             remote_url = os.getenv(
                 "GIT_REMOTE_URL",
-                "https://aps12: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@github.com/aps12/ipl-dream11-2025.git"
+                "https://aps12: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@github.com/aps12/ipl-dream11-2025.git"
             )
 
             # Check if the remote origin already exists
