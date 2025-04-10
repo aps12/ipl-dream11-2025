@@ -70,9 +70,9 @@
                 <tr>
                     <td>{{ team }}</td>
                     <td>{{ data["Total Bet"] }}</td>
-                    <td>{{ data["Total Winnings"] }}</td>
+                    <td>{{ data["Total Winnings"]|round(2) }}</td>
                     <td style="color: {% if data['Net Winning'] >= 0 %}green{% else %}red{% endif %};">
-                        {{ data["Net Winning"] }}
+                        {{ data["Net Winning"]|round(2) }}
                     </td>
                 </tr>
                 {% endfor %}

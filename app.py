@@ -8,10 +8,18 @@ app = Flask(__name__)
 app.secret_key = 'k'  # Required for session management
 
 # PostgreSQL Configuration
+# app.config['SQLALCHEMY_DATABASE_URI'] = (
+#     'postgresql://ipl_pg_db_user:ouTA3DieDxXwVMxg0VIfoRWMlwhZf8Gk'
+#     '@dpg-cvh737jv2p9s7382os50-a.oregon-postgres.render.com/ipl_pg_db'
+# )
+
 app.config['SQLALCHEMY_DATABASE_URI'] = (
-    'postgresql://ipl_pg_db_user:ouTA3DieDxXwVMxg0VIfoRWMlwhZf8Gk'
-    '@dpg-cvh737jv2p9s7382os50-a.oregon-postgres.render.com/ipl_pg_db'
+    'postgresql://neondb_owner:npg_6gywkml8XSri@ep-holy-wildflower-a54woyks-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require'
 )
+
+# app.config['SQLALCHEMY_DATABASE_URI'] = (
+#     'sqlite:///ipl_db.sqlite'
+# )
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 PASSWORD  = 'k'  # Password for editing match rankings
