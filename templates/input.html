@@ -4,7 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Input Match Rankings</title>
+
+  <!-- Bootstrap CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- FontAwesome for Icons -->
+  <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+
   <style>
     body {
       background-color: #f8f9fa;
@@ -59,31 +65,120 @@
     .btn-warning:hover {
       background-color: #e0a800 !important;
     }
-    
+
     /* Submit All Button Styling */
     .submit-all-container {
       margin: 20px 0;
       text-align: center;
     }
-    
+
     .btn-submit-all {
       padding: 10px 30px;
       font-size: 1.1em;
       font-weight: bold;
     }
+
+    /* Navbar styling */
+    .navbar-brand {
+      font-family: 'Poppins', sans-serif;
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: #fff !important;
+    }
+
+    .nav-link {
+      font-size: 1rem;
+      color: #fff !important;
+      transition: color 0.3s ease-in-out;
+    }
+
+    .nav-link:hover, .nav-link.active {
+      color: #f8d33f !important; /* Highlight active and hovered links */
+    }
+
+    /* Hamburger button styling */
+    .navbar-toggler {
+      border-color: #f8d33f;
+    }
+
+    .navbar-toggler-icon {
+      background-image: url("data:image/svg+xml;charset=UTF8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='%23f8d33f' stroke-width='2' stroke-linecap='round' stroke-miterlimit='10' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+    }
+
+    /* Dark mode styling */
+    body.dark-mode {
+      background-color: #222 !important;
+      color: #f8f9fa !important;
+    }
+
+    .dark-mode .navbar, .dark-mode .navbar-toggler {
+      background-color: #333 !important;
+    }
+
+    .dark-mode .nav-link {
+      color: #fff !important;
+    }
+
+    .dark-mode .nav-link.active, .dark-mode .nav-link:hover {
+      color: #f8d33f !important;
+    }
+
+    .dark-mode h2 {
+      color: #e6e6e6;
+    }
+
+    /* Mobile-specific adjustments for navbar */
+    @media (max-width: 768px) {
+      .navbar-brand {
+        font-size: 1.2rem;
+      }
+
+      .nav-link {
+        font-size: 0.9rem;
+        padding: 0.5rem;
+      }
+    }
   </style>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="/">IPL Dream11 2025 Dashboard</a>
-            <div class="navbar-nav">
-                <a class="nav-link" href="/">Home</a>
-                <a class="nav-link" href="/input">Input</a>
-                <a class="nav-link" href="{{ url_for('match_rankings') }}">Match Rankings</a>
-            </div>
-        </div>
-    </nav>
+  <!-- Enhanced Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
+      <div class="container-fluid">
+          <!-- Brand -->
+          <a class="navbar-brand" href="/">IPL Dream11 2025 Dashboard</a>
+
+      
+
+          <!-- Navbar Toggler (Hamburger Menu) -->
+          <button 
+              class="navbar-toggler" 
+              type="button" 
+              data-bs-toggle="collapse" 
+              data-bs-target="#navbarNavDropdown" 
+              aria-controls="navbarNavDropdown" 
+              aria-expanded="false" 
+              aria-label="Toggle navigation"
+          >
+              <span class="navbar-toggler-icon"></span>
+          </button>
+
+          <!-- Navbar Links -->
+          <div class="collapse navbar-collapse" id="navbarNavDropdown">
+              <ul class="navbar-nav ms-auto">
+                  <li class="nav-item">
+                      <a class="nav-link" href="/">Home</a>
+                  </li>
+                  <li class="nav-item">
+                      <a class="nav-link active" href="/input">Input</a>
+                  </li>
+                  <li class="nav-item">
+                      <a class="nav-link" href="{{ url_for('match_rankings') }}">Match Rankings</a>
+                  </li>
+              </ul>
+          </div>
+      </div>
+  </nav>
+
   <div class="container-fluid">
     <h2>Input Match Rankings</h2>
     <form method="POST" action="{{ url_for('input_page') }}">
@@ -104,7 +199,6 @@
           <tbody>
           {% for match in matches %}
           <tr>
-            <!-- Static text for all columns when no submit button -->
             {% if match.rank_1 and not match.edit_mode %}
               <td>{{ match.match_date }}</td>
               <td>{{ match.teams_playing }}</td>
@@ -119,62 +213,43 @@
                 </button>
               </td>
             {% else %}
-              <!-- Existing editable row logic -->
               <td>{{ match.match_date }}</td>
               <td>{{ match.teams_playing }}</td>
-
-              <!-- Dropdowns for Ranks -->
               {% for rank in [1, 2, 3, 4] %}
               <td>
                 <div id="rank{{ rank }}-container-{{ match.id }}">
                   {% if match['rank_' ~ rank] and not match.edit_mode %}
-                  <!-- Static Text if Already Submitted and not in edit mode -->
-                  <span class="static-text">{{ match['rank_' ~ rank] | join(', ') }}</span>
+                    <span class="static-text">{{ match['rank_' ~ rank] | join(', ') }}</span>
                   {% else %}
-                  <!-- Editable Dropdown -->
-                  <div class="dropdown">
-                    <button class="btn btn-secondary dropdown-toggle btn-sm w-100" type="button" id="rank{{ rank }}Dropdown{{ match.id }}" data-bs-toggle="dropdown" aria-expanded="false" aria-labelledby="rank{{ rank }}Dropdown{{ match.id }}">
-                      {% if match['rank_' ~ rank] %}{{ match['rank_' ~ rank] | join(', ') }}{% else %}Select Teams{% endif %}
-                    </button>
-                    <ul class="dropdown-menu" aria-labelledby="rank{{ rank }}Dropdown{{ match.id }}">
-                      {% for team in teams %}
-                      <li>
-                        <label class="dropdown-item">
-                          <input type="checkbox" name="rank{{ rank }}_{{ match.id }}" value="{{ team }}"
-                            {% if team in match['rank_' ~ rank] %} checked {% endif %}
-                            onchange="updateDropdown({{ match.id }}, {{ rank }})">
-                          {{ team }}
-                        </label>
-                      </li>
-                      {% endfor %}
-                    </ul>
-                  </div>
+                    <div class="dropdown">
+                      <button class="btn btn-secondary dropdown-toggle btn-sm w-100" type="button" id="rank{{ rank }}Dropdown{{ match.id }}" data-bs-toggle="dropdown" aria-expanded="false">
+                        {% if match['rank_' ~ rank] %}{{ match['rank_' ~ rank] | join(', ') }}{% else %}Select Teams{% endif %}
+                      </button>
+                      <ul class="dropdown-menu">
+                        {% for team in teams %}
+                        <li>
+                          <label class="dropdown-item">
+                            <input type="checkbox" name="rank{{ rank }}_{{ match.id }}" value="{{ team }}"
+                              {% if team in match['rank_' ~ rank] %} checked {% endif %}
+                              onchange="updateDropdown({{ match.id }}, {{ rank }})">
+                            {{ team }}
+                          </label>
+                        </li>
+                        {% endfor %}
+                      </ul>
+                    </div>
                   {% endif %}
                 </div>
               </td>
               {% endfor %}
-
-              <!-- Submit/Update Button -->
               <td>
                 {% if match.rank_1 and not match.edit_mode %}
-                <!-- Update button (when data exists and not in edit mode) -->
-                <button type="submit" name="action" value="edit_{{ match.id }}" 
-                  class="btn btn-warning btn-sm w-100">
-                  Update
-                </button>
+                  <button type="submit" name="action" value="edit_{{ match.id }}" class="btn btn-warning btn-sm w-100">Update</button>
                 {% else %}
-                <!-- Submit button (when in edit mode or no data) -->
-                <button type="submit" name="action" value="submit_{{ match.id }}" 
-                  class="btn btn-success btn-sm w-100">
-                  Submit
-                </button>
-                <!-- Cancel button (only show in edit mode with existing data) -->
-                {% if match.rank_1 and match.edit_mode %}
-                <button type="submit" name="action" value="cancel_{{ match.id }}" 
-                  class="btn btn-secondary btn-sm w-100 mt-1">
-                  Cancel
-                </button>
-                {% endif %}
+                  <button type="submit" name="action" value="submit_{{ match.id }}" class="btn btn-success btn-sm w-100">Submit</button>
+                  {% if match.rank_1 and match.edit_mode %}
+                    <button type="submit" name="action" value="cancel_{{ match.id }}" class="btn btn-secondary btn-sm w-100 mt-1">Cancel</button>
+                  {% endif %}
                 {% endif %}
               </td>
             {% endif %}
@@ -183,34 +258,21 @@
           </tbody>
         </table>
       </div>
-      
-      <!-- Submit All Button Container -->
       <div class="submit-all-container">
-        <button type="submit" name="action" value="submit_all" 
-          class="btn btn-success btn-submit-all">
+        <button type="submit" name="action" value="submit_all" class="btn btn-success btn-submit-all">
           Submit All Rankings
         </button>
       </div>
     </form>
   </div>
 
-  <!-- Bootstrap JS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
   <script>
-    /**
-     * Dynamically updates dropdown button color and text based on selections made.
-     */
     function updateDropdown(matchID, rank) {
       const checkboxes = document.querySelectorAll(`#rank${rank}-container-${matchID} input[type="checkbox"]:checked`);
       const selectedValues = Array.from(checkboxes).map(cb => cb.value);
-
-      // Get the corresponding dropdown button
       const button = document.querySelector(`#rank${rank}Dropdown${matchID}`);
-
-      // Update dropdown button text with selected values
       button.textContent = selectedValues.length > 0 ? selectedValues.join(', ') : "Select Teams";
-
-      // Change button color to light green if selections are made
       if (selectedValues.length > 0) {
         button.classList.remove('btn-secondary');
         button.classList.add('btn-success-light');
@@ -220,13 +282,31 @@
       }
     }
 
-    // Initialize dropdowns with proper styling on page load
     document.addEventListener('DOMContentLoaded', function() {
       const dropdowns = document.querySelectorAll('.dropdown-toggle');
       dropdowns.forEach(button => {
         if (button.textContent.trim() !== "Select Teams") {
           button.classList.remove('btn-secondary');
           button.classList.add('btn-success-light');
+        }
+      });
+
+      const modeToggle = document.getElementById('modeToggle');
+      const body = document.body;
+
+      if (localStorage.getItem('theme') === 'dark') {
+        body.classList.add('dark-mode');
+        modeToggle.innerHTML = '<i class="fas fa-sun"></i>';
+      }
+
+      modeToggle.addEventListener('click', function() {
+        body.classList.toggle('dark-mode');
+        if (body.classList.contains('dark-mode')) {
+          modeToggle.innerHTML = '<i class="fas fa-sun"></i>';
+          localStorage.setItem('theme', 'dark');
+        } else {
+          modeToggle.innerHTML = '<i class="fas fa-moon"></i>';
+          localStorage.setItem('theme', 'light');
         }
       });
     });
