@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Input Match Rankings</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      background-color: #f8f9fa;
+      font-family: 'Arial', sans-serif;
+    }
+
+    h2 {
+      margin: 20px 0;
+      text-align: center;
+      color: #495057;
+    }
+
+    .table th {
+      background-color: #6c757d;
+      color: #fff;
+      text-align: center;
+    }
+
+    .table td {
+      vertical-align: middle;
+      text-align: center;
+    }
+
+    .dropdown-menu {
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .static-text {
+      font-weight: bold;
+      color: #495057;
+    }
+
+    /* Custom Success Light Green */
+    .btn-success-light {
+      background-color: #d4edda; /* Light green */
+      color: #155724;
+      border-color: #c3e6cb;
+    }
+
+    /* Hover Effects */
+    .btn-success-light:hover {
+      background-color: #218838; /* Bootstrap green hover */
+      color: white;
+    }
+
+    .btn-secondary:hover {
+      background-color: #6c757d; /* Default Bootstrap secondary hover */
+    }
+
+    /* Custom Warning Color */
+    .btn-warning:hover {
+      background-color: #e0a800 !important;
+    }
+    
+    /* Submit All Button Styling */
+    .submit-all-container {
+      margin: 20px 0;
+      text-align: center;
+    }
+    
+    .btn-submit-all {
+      padding: 10px 30px;
+      font-size: 1.1em;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">IPL Dream11 2025 Dashboard</a>
+            <div class="navbar-nav">
+                <a class="nav-link" href="/">Home</a>
+                <a class="nav-link" href="/input">Input</a>
+                <a class="nav-link" href="{{ url_for('match_rankings') }}">Match Rankings</a>
+            </div>
+        </div>
+    </nav>
+  <div class="container-fluid">
+    <h2>Input Match Rankings</h2>
+    <form method="POST" action="{{ url_for('input_page') }}">
+      <!-- Table Wrapper -->
+      <div class="table-responsive">
+        <table class="table table-bordered table-striped">
+          <thead class="table-dark">
+            <tr>
+              <th>Date</th>
+              <th>Teams Playing</th>
+              <th>Rank 1</th>
+              <th>Rank 2</th>
+              <th>Rank 3</th>
+              <th>Rank 4</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for match in matches %}
+          <tr>
+            <!-- Static text for all columns when no submit button -->
+            {% if match.rank_1 and not match.edit_mode %}
+              <td>{{ match.match_date }}</td>
+              <td>{{ match.teams_playing }}</td>
+              <td class="static-text">{{ match.rank_1 | join(', ') or '-' }}</td>
+              <td class="static-text">{{ match.rank_2 | join(', ') or '-' }}</td>
+              <td class="static-text">{{ match.rank_3 | join(', ') or '-' }}</td>
+              <td class="static-text">{{ match.rank_4 | join(', ') or '-' }}</td>
+              <td>
+                <button type="submit" name="action" value="edit_{{ match.id }}" 
+                  class="btn btn-warning btn-sm w-100">
+                  Update
+                </button>
+              </td>
+            {% else %}
+              <!-- Existing editable row logic -->
+              <td>{{ match.match_date }}</td>
+              <td>{{ match.teams_playing }}</td>
+
+              <!-- Dropdowns for Ranks -->
+              {% for rank in [1, 2, 3, 4] %}
+              <td>
+                <div id="rank{{ rank }}-container-{{ match.id }}">
+                  {% if match['rank_' ~ rank] and not match.edit_mode %}
+                  <!-- Static Text if Already Submitted and not in edit mode -->
+                  <span class="static-text">{{ match['rank_' ~ rank] | join(', ') }}</span>
+                  {% else %}
+                  <!-- Editable Dropdown -->
+                  <div class="dropdown">
+                    <button class="btn btn-secondary dropdown-toggle btn-sm w-100" type="button" id="rank{{ rank }}Dropdown{{ match.id }}" data-bs-toggle="dropdown" aria-expanded="false" aria-labelledby="rank{{ rank }}Dropdown{{ match.id }}">
+                      {% if match['rank_' ~ rank] %}{{ match['rank_' ~ rank] | join(', ') }}{% else %}Select Teams{% endif %}
+                    </button>
+                    <ul class="dropdown-menu" aria-labelledby="rank{{ rank }}Dropdown{{ match.id }}">
+                      {% for team in teams %}
+                      <li>
+                        <label class="dropdown-item">
+                          <input type="checkbox" name="rank{{ rank }}_{{ match.id }}" value="{{ team }}"
+                            {% if team in match['rank_' ~ rank] %} checked {% endif %}
+                            onchange="updateDropdown({{ match.id }}, {{ rank }})">
+                          {{ team }}
+                        </label>
+                      </li>
+                      {% endfor %}
+                    </ul>
+                  </div>
+                  {% endif %}
+                </div>
+              </td>
+              {% endfor %}
+
+              <!-- Submit/Update Button -->
+              <td>
+                {% if match.rank_1 and not match.edit_mode %}
+                <!-- Update button (when data exists and not in edit mode) -->
+                <button type="submit" name="action" value="edit_{{ match.id }}" 
+                  class="btn btn-warning btn-sm w-100">
+                  Update
+                </button>
+                {% else %}
+                <!-- Submit button (when in edit mode or no data) -->
+                <button type="submit" name="action" value="submit_{{ match.id }}" 
+                  class="btn btn-success btn-sm w-100">
+                  Submit
+                </button>
+                <!-- Cancel button (only show in edit mode with existing data) -->
+                {% if match.rank_1 and match.edit_mode %}
+                <button type="submit" name="action" value="cancel_{{ match.id }}" 
+                  class="btn btn-secondary btn-sm w-100 mt-1">
+                  Cancel
+                </button>
+                {% endif %}
+                {% endif %}
+              </td>
+            {% endif %}
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      
+      <!-- Submit All Button Container -->
+      <div class="submit-all-container">
+        <button type="submit" name="action" value="submit_all" 
+          class="btn btn-success btn-submit-all">
+          Submit All Rankings
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    /**
+     * Dynamically updates dropdown button color and text based on selections made.
+     */
+    function updateDropdown(matchID, rank) {
+      const checkboxes = document.querySelectorAll(`#rank${rank}-container-${matchID} input[type="checkbox"]:checked`);
+      const selectedValues = Array.from(checkboxes).map(cb => cb.value);
+
+      // Get the corresponding dropdown button
+      const button = document.querySelector(`#rank${rank}Dropdown${matchID}`);
+
+      // Update dropdown button text with selected values
+      button.textContent = selectedValues.length > 0 ? selectedValues.join(', ') : "Select Teams";
+
+      // Change button color to light green if selections are made
+      if (selectedValues.length > 0) {
+        button.classList.remove('btn-secondary');
+        button.classList.add('btn-success-light');
+      } else {
+        button.classList.remove('btn-success-light');
+        button.classList.add('btn-secondary');
+      }
+    }
+
+    // Initialize dropdowns with proper styling on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      const dropdowns = document.querySelectorAll('.dropdown-toggle');
+      dropdowns.forEach(button => {
+        if (button.textContent.trim() !== "Select Teams") {
+          button.classList.remove('btn-secondary');
+          button.classList.add('btn-success-light');
+        }
+      });
+    });
+  </script>
+</body>
+</html>
