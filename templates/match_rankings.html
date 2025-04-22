@@ -3,6 +3,7 @@
 {% block title %}Match Rankings & Winnings{% endblock %}
 
 {% block content %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <div class="container py-4">
 
     <!-- Matches Section Heading -->
@@ -15,7 +16,7 @@
             <!-- Date Filter -->
             <div class="col-lg-3 col-md-5 col-12">
                 <input
-                    type="date"
+                    type="text"
                     id="filterDate"
                     class="form-control form-control-lg"
                     placeholder="Select Match Date"
@@ -125,9 +126,16 @@
     {% endif %}
 </div>
 
-<!-- Additional JavaScript for Filtering & Reset Logic -->
+<!-- Flatpickr and Filtering Script -->
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        // Initialize flatpickr
+        flatpickr("#filterDate", {
+            dateFormat: "d-M-Y",
+            allowInput: true
+        });
+
         const filterButton = document.getElementById('filterButton');
         const resetButton = document.getElementById('resetButton');
         const filterDate = document.getElementById('filterDate');
@@ -143,7 +151,6 @@
             return `${year}-${month}-${day}`;
         }
 
-        // Filter Button Logic
         filterButton.addEventListener('click', function () {
             const dateFilter = filterDate.value.trim();
             const nameFilter = filterName.value.trim().toLowerCase();
@@ -173,7 +180,6 @@
             }
         });
 
-        // Reset Button Logic
         resetButton.addEventListener('click', function () {
             filterDate.value = '';
             filterName.value = '';
@@ -185,7 +191,7 @@
     });
 </script>
 
-<!-- Additional CSS for Enhanced Styling -->
+<!-- Additional CSS for Styling -->
 <style>
     body {
         background-color: #f9fcfd;

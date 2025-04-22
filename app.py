@@ -16,6 +16,11 @@ app.secret_key = 'k'  # Required for session management
 app.config['SQLALCHEMY_DATABASE_URI'] = (
     'postgresql://neondb_owner:npg_6gywkml8XSri@ep-holy-wildflower-a54woyks-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require'
 )
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_pre_ping': True,
+    'pool_recycle': 280,
+    'connect_args': {'sslmode': 'require'}
+}
 
 # app.config['SQLALCHEMY_DATABASE_URI'] = (
 #     'sqlite:///ipl_db.sqlite'
@@ -436,3 +441,4 @@ if __name__ == "__main__":
     with app.app_context():
         db.create_all()  # Ensure tables are created
     app.run(debug=True)
+    # app.run(debug=True, host='127.0.0.1', port=5000)
